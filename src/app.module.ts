@@ -1,31 +1,28 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { CommonAuthModule } from './common/auth/auth.module';
 import { DbModule } from './common/db/db.module';
-
-import { AuthModule } from './modules/auth/auth.module';
-import { ProfilesModule } from './modules/profiles/profiles.module';
-import { CompaniesModule } from './modules/companies/companies.module';
-import { JobsModule } from './modules/jobs/jobs.module';
-import { ApplicationsModule } from './modules/applications/applications.module';
-import { PaymentsModule } from './modules/payments/payments.module';
-import { NotificationsModule } from './modules/notifications/notifications.module';
-import { ReferralsModule } from './modules/referrals/referrals.module';
-import { UploadsModule } from './modules/uploads/uploads.module';
+import { AuthServiceModule } from './modules/auth/auth-service.module';
+import { JobServiceModule } from './modules/jobs/job-service.module';
+import { ApplicationServiceModule } from './modules/applications/application-service.module';
+import { PaymentServiceModule } from './modules/payments/payment-service.module';
+import { NotificationServiceModule } from './modules/notifications/notification-service.module';
+import { ReferralServiceModule } from './modules/referrals/referral-service.module';
+import { UploadsModule } from './modules/uploads/uploads-service.module';
+import { AuthModule } from './common/auth/auth.module';
+import { CompanyServiceModule } from './modules/companies/company-service.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DbModule,
-    CommonAuthModule,
     AuthModule,
-    ProfilesModule,
-    CompaniesModule,
-    JobsModule,
-    ApplicationsModule,
-    PaymentsModule,
-    NotificationsModule,
-    ReferralsModule,
+    AuthServiceModule,
+    CompanyServiceModule,
+    JobServiceModule,
+    ApplicationServiceModule,
+    PaymentServiceModule,
+    NotificationServiceModule,
+    ReferralServiceModule,
     UploadsModule,
   ],
 })

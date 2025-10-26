@@ -14,7 +14,7 @@ export class SupabaseServer {
 
     let base = raw;
     if (!/^https?:\/\//i.test(base)) base = `https://${base}`;
-    this.pub   = createClient(base, anon);
+    this.pub = createClient(base, anon);
     this.admin = createClient(base, service);
   }
 
