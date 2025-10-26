@@ -14,7 +14,6 @@ function normalizeCreateBody(raw: any): CreateNotificationDto {
     relatedId: src.relatedId ?? src.related_id ?? undefined,
   } as any;
 
-  // Validación mínima explícita antes del ValidationPipe (mensajes más claros)
   if (!dto.userId || !dto.title || !dto.message || !dto.notificationType) {
     throw new BadRequestException('Missing required fields (userId, title, message, notificationType)');
   }
@@ -22,7 +21,6 @@ function normalizeCreateBody(raw: any): CreateNotificationDto {
 }
 
 function normalizeQuery(q: any): QueryNotificationsDto {
-  // Acepta ?type= además de ?notificationType=
   const out: QueryNotificationsDto = {
     userId: q.userId ?? q.user_id,
     status: q.status,
@@ -39,7 +37,6 @@ export class NotificationsController {
 
   @Post()
   create(@Body() raw: any) {
-    // normalizamos por si llega { input: {...} } o snake_case
     const dto = normalizeCreateBody(raw);
     return this.service.create(dto);
   }
@@ -60,7 +57,6 @@ export class NotificationsController {
     return this.service.markRead(id);
   }
 
-  // Forzar envío de una notificación (útil en pruebas)
   @Post(':id/dispatch')
   dispatch(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.service.dispatchOneById(id);

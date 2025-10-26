@@ -34,16 +34,12 @@ export class UploadsService {
     );
   }
 
-  // ----------- AUTH HELPERS -----------
   private parseBearer(authHeader?: string): string | null {
     if (!authHeader) return null;
     const m = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
     return m?.[1] ?? null;
   }
 
-  /**
-   * Versión "estricta": si no hay token o no existe el usuario → 401
-   */
   async getUserIdByAccessTokenOrThrow(authHeader?: string): Promise<string> {
     const token = this.parseBearer(authHeader);
     if (!token) {
@@ -57,7 +53,6 @@ export class UploadsService {
     return data.user.id;
   }
 
-  // ----------- VALIDATION -----------
   private validateMulterImage(file: Express.Multer.File | undefined) {
     if (!file) throw new BadRequestException('file_required');
     const ok = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
@@ -66,7 +61,6 @@ export class UploadsService {
       throw new BadRequestException('file_too_large');
   }
 
-  // ----------- CORE UPLOAD -----------
   private async uploadBuffer(
     bucket: string,
     objectPath: string,
@@ -74,7 +68,7 @@ export class UploadsService {
   ) {
     const { error } = await this.admin.storage.from(bucket).upload(objectPath, file.buffer, {
       contentType: file.mimetype,
-      upsert: false, // evita sobrescribir
+      upsert: false,
     });
 
     if (error) {
@@ -86,7 +80,6 @@ export class UploadsService {
     return { url: pub.publicUrl, bucket, path: objectPath };
   }
 
-  // ----------- PUBLIC METHODS -----------
   async uploadAvatarOneShot(userId: string, file: Express.Multer.File) {
     this.validateMulterImage(file);
     const ext = (extname(file.originalname || '') || '.jpg').toLowerCase();

@@ -1,7 +1,6 @@
-// src/profiles/profiles.service.ts
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Pool } from 'pg';
-import { PG_POOL } from '../db/db.module';
+import { PG_POOL } from 'src/common/db/pg.constants';
 import { SearchProfilesDto } from '../dto/search-profiles.dto';
 
 type UserRole = 'candidate' | 'company_admin' | 'headhunter' | 'admin';
@@ -11,12 +10,6 @@ type UserStatus = 'active' | 'inactive' | 'banned' | 'pending';
 export class ProfilesService {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) { }
 
-  /**
-   * Normaliza valores JSON (experience/education) a arrays.
-   * - Si viene null/undefined: []
-   * - Si viene objeto: lo envuelve en [obj]
-   * - Si viene string: intenta parsear
-   */
   private toJsonArray(val: any): any[] {
     if (val == null) return [];
     if (Array.isArray(val)) return val;
@@ -25,23 +18,16 @@ export class ProfilesService {
         const parsed = JSON.parse(val);
         return Array.isArray(parsed) ? parsed : parsed ? [parsed] : [];
       } catch {
-        // si no parsea, lo tratamos como vacío
         return [];
       }
     }
-    // es un objeto plano u otro tipo: lo envolvemos
     return [val];
   }
 
-  /**
-   * Normaliza un row proveniente de PG para que experience/education
-   * siempre sean arrays y skills sea array o null (según tu schema).
-   */
   private normalizeRow<T extends Record<string, any>>(row: T): T {
     if (!row) return row;
     return {
       ...row,
-      // skills puede ser text[] o null: lo dejamos como viene.
       experience: this.toJsonArray(row.experience),
       education: this.toJsonArray(row.education),
     };
@@ -60,8 +46,8 @@ export class ProfilesService {
       occupation?: string | null;
       about_me?: string | null;
       skills?: string[] | null;
-      experience?: any; // json/jsonb
-      education?: any;  // json/jsonb
+      experience?: any;
+      education?: any;
       cv_url?: string | null;
       reputation_score?: number | null;
     },

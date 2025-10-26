@@ -7,8 +7,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth-service.service';
-import { HttpAuthGuard } from '@app/common/auth/http-auth.guard';
-import { AuthUser } from '@app/common/auth/auth-user.decorator';
+import { HttpAuthGuard } from 'src/common/auth/http-auth.guard';
+import { AuthUser } from 'src/common/auth/auth-user.decorator';
 
 type UserRole = 'candidate' | 'company_admin' | 'headhunter' | 'admin';
 

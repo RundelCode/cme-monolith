@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient, AuthApiError, User } from '@supabase/supabase-js';
 import { Pool } from 'pg';
 import { Inject } from '@nestjs/common';
-import { PG_POOL } from './db/db.module';
+import { PG_POOL } from 'src/common/db/pg.constants';
 
 type UserRole = 'candidate' | 'company_admin' | 'headhunter' | 'admin';
 type UserStatus = 'active' | 'inactive' | 'banned' | 'pending';

@@ -1,4 +1,3 @@
-// apps/payments/src/payment-service.controller.ts
 import {
   Controller, Get, Post, Patch, Delete,
   Param, Body, Query, ParseUUIDPipe, UseGuards, Req
@@ -7,10 +6,9 @@ import { PaymentServiceService } from './payment-service.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { QueryPaymentsDto } from './dto/query-payments.dto';
-import { HttpAuthGuard } from '@app/common/auth/http-auth.guard';
-import { AuthUser } from '@app/common/auth/auth-user.decorator';
 import { StartReferralCheckoutDto } from './dto/start-hire-checkout.dto';
-import { Public } from '../../../libs/common/src/auth/public.decorator';
+import { AuthUser } from 'src/common/auth/auth-user.decorator';
+import { Public } from 'src/common/auth/public.decorator';
 
 
 @Controller('payments')

@@ -75,20 +75,17 @@ export class JobServiceController {
     return this.jobService.search(q);
   }
 
-  // GET /jobs/:id
   @Get(':id')
   findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.jobService.findOne(id);
   }
 
-  // POST /jobs
   @Post()
   create(@Body() body: CreateJobDto) {
     console.log('[REST /jobs] body recibido:', body);
     return this.jobService.create(body); 
   }
 
-  // PATCH /jobs/:id
   @Patch(':id')
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -97,7 +94,6 @@ export class JobServiceController {
     return this.jobService.update(id, patch);
   }
 
-  // DELETE /jobs/:id
   @Delete(':id')
   remove(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.jobService.remove(id);

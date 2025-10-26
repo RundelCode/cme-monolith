@@ -7,10 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Pool } from 'pg';
-import { PG_POOL } from './db/db.module';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { QuerySearchJobsDto } from './dto/query-search-jobs.dto';
+import { PG_POOL } from 'src/common/db/pg.constants';
 
 @Injectable()
 export class JobServiceService {

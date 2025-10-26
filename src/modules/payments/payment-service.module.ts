@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PaymentServiceController } from './payment-service.controller';
 import { PaymentServiceService } from './payment-service.service';
-import { AuthModule } from '@app/common/auth/auth.module';
-import { DbModule } from './db/db.module';
+import { AuthModule } from 'src/common/auth/auth.module';
+import { DbModule } from 'src/common/db/db.module';
 
 @Module({
   imports: [

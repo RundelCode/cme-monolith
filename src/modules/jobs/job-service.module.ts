@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { DbModule } from './db/db.module';
 import { JobServiceController } from './job-service.controller';
 import { JobServiceService } from './job-service.service';
-import { AuthModule } from '@app/common/auth/auth.module';
+import { AuthModule } from 'src/common/auth/auth.module';
+import { DbModule } from 'src/common/db/db.module';
 
 @Module({
   imports: [

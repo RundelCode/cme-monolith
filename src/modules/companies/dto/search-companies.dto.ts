@@ -1,4 +1,3 @@
-// apps/company-service/src/dto/search-companies.dto.ts
 import { Transform } from 'class-transformer';
 import {
   IsBoolean, IsEnum, IsIn, IsNumber, IsOptional, IsString,

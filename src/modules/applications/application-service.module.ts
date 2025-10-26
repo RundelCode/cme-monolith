@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { DbModule } from './db/db.module';
+import { PG_POOL } from 'src/common/db/pg.constants';
 import { ApplicationsController } from './application-service.controller';
 import { ApplicationsService } from './application-service.service';
+import { DbModule } from 'src/common/db/db.module';
 
 @Module({
   imports: [

@@ -7,10 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Pool } from 'pg';
-import { PG_POOL } from './db/db.module';
 import { CreateReferralDto } from './dto/create-referral.dto';
 import { UpdateReferralDto } from './dto/update-referral.dto';
 import { QueryReferralsDto } from './dto/query-referrals.dto';
+import { PG_POOL } from 'src/common/db/pg.constants';
 
 type ReferralStatus =
   | 'submitted'

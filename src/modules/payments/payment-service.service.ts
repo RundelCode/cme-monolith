@@ -7,13 +7,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Pool } from 'pg';
-import { PG_POOL } from './db/db.module';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { QueryPaymentsDto } from './dto/query-payments.dto';
-
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 import { StartReferralCheckoutDto } from './dto/start-hire-checkout.dto';
+import { PG_POOL } from 'src/common/db/pg.constants';
 
 @Injectable()
 export class PaymentServiceService {

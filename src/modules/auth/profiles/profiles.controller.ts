@@ -2,10 +2,10 @@ import {
   Controller, Get, Post, Patch, Body, Query, Param,
   UseGuards, ValidationPipe, ParseUUIDPipe
 } from '@nestjs/common';
-import { HttpAuthGuard } from '@app/common/auth/http-auth.guard';
-import { AuthUser } from '@app/common/auth/auth-user.decorator';
 import { ProfilesService } from './profiles.service';
 import { SearchProfilesDto } from '../dto/search-profiles.dto';
+import { HttpAuthGuard } from 'src/common/auth/http-auth.guard';
+import { AuthUser } from 'src/common/auth/auth-user.decorator';
 
 const queryPipe = new ValidationPipe({
   transform: true,
@@ -62,7 +62,6 @@ export class ProfilesController {
     return this.svc.updatePartial(user.id, patch);
   }
 
-  // ---- GET by ID (público) -> debe ir AL FINAL
   @Get(':id')
   getById(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
     return this.svc.findOne(id);

@@ -1,11 +1,20 @@
 import {
-  Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseUUIDPipe, ValidationPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  ParseUUIDPipe,
+  ValidationPipe,
   NotFoundException,
 } from '@nestjs/common';
-import { CompaniesService } from './company-service.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { SearchCompaniesDto } from './dto/search-companies.dto';
+import { CompaniesService } from './company-service.service';
 
 const bodyPipe = new ValidationPipe({
   transform: true,

@@ -8,10 +8,10 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Pool } from 'pg';
-import { PG_POOL } from './db/db.module';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { QueryNotificationsDto } from './dto/query-notifications.dto';
 import { EmailAdapter } from './email.adapter';
+import { PG_POOL } from 'src/common/db/pg.constants';
 
 @Injectable()
 export class NotificationsService {
@@ -21,7 +21,6 @@ export class NotificationsService {
     private readonly email: EmailAdapter,
   ) { }
 
-  // CRUD básico ---------------------------------------------------------------
 
   async create(input: CreateNotificationDto) {
 
@@ -105,9 +104,7 @@ export class NotificationsService {
     }
   }
 
-  // Dispatch / Worker ---------------------------------------------------------
 
-  // cron cada minuto: procesa hasta N notifs en cola
   @Cron(CronExpression.EVERY_MINUTE)
   async dispatchQueued() {
     const batchSize = Number(process.env.NOTIF_BATCH_SIZE || 20);
@@ -115,7 +112,6 @@ export class NotificationsService {
     try {
       await client.query('BEGIN');
 
-      // lock filas para evitar doble procesamiento en despliegues con réplicas
       const { rows } = await client.query(
         `
         SELECT id, user_id, title, message, notification_type, channel
@@ -149,7 +145,6 @@ export class NotificationsService {
     }
   }
 
-  // también sirve para forzar un envío manual desde el controller
   async dispatchOneById(id: string) {
     const client = await this.pool.connect();
     try {
@@ -173,7 +168,6 @@ export class NotificationsService {
 
   private async dispatchOne(client: any, n: any) {
     if (n.channel !== 'email') {
-      // Por ahora solo email; si llega otro canal, fallamos “blando”
       await client.query(
         `UPDATE public.notifications SET status = 'failed', updated_at = now() WHERE id = $1`,
         [n.id],
@@ -181,7 +175,6 @@ export class NotificationsService {
       return;
     }
 
-    // Necesitamos el correo del usuario => profiles.email
     const { rows: urows } = await client.query(
       `SELECT email, full_name FROM public.profiles WHERE id = $1`,
       [n.user_id],
@@ -190,7 +183,6 @@ export class NotificationsService {
     const fullName = urows[0]?.full_name || 'Usuario';
     if (!userEmail) throw new BadRequestException('User email not found');
 
-    // Render simple (puedes sustituir por plantilla)
     const subject = n.title;
     const html = `
       <div style="font-family:Inter,Arial,sans-serif">
@@ -201,10 +193,8 @@ export class NotificationsService {
       </div>
     `;
 
-    // Enviar con Resend
     await this.email.send(userEmail, subject, html, n.message);
 
-    // OK → marcar sent
     await client.query(
       `UPDATE public.notifications SET status = 'sent', updated_at = now() WHERE id = $1`,
       [n.id],

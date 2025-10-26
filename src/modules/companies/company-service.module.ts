@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { DbModule } from './db/db.module';
 import { CompaniesController } from './company-service.controller';
 import { CompaniesService } from './company-service.service';
+import { DbModule } from 'src/common/db/db.module';
 
 @Module({
   imports: [

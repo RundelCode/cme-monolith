@@ -7,10 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Pool } from 'pg';
-import { PG_POOL } from '../db/db.module';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
 import { QueryApplicationsDto } from './dto/query-applications.dto';
+import { PG_POOL } from 'src/common/db/pg.constants';
 
 @Injectable()
 export class ApplicationsService {
