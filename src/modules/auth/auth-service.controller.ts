@@ -103,11 +103,6 @@ export class AuthController {
     if (!token) {
       throw new BadRequestException('access_token_required');
     }
-
-    // 👉 No llamamos a Google aquí. El service se encarga de:
-    // - Obtener el usuario desde Supabase con el access_token
-    // - Consultar el perfil en Postgres
-    // - Decidir si ignora o no la foto de Google
     return this.svc.oauthLogin(token);
   }
 }
