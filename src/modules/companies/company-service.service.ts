@@ -183,38 +183,42 @@ export class CompaniesService {
       vals.push(val);
     };
 
+    if (dto.adminId !== undefined && dto.adminId !== null) {
+      add(`admin_id =`, dto.adminId, 'uuid');
+    }
+
     if (dto.q) {
       const idx = vals.length + 1;
       const pat = `%${dto.q}%`;
       where.push(
         `(
-          name ILIKE $${idx}
-          OR email ILIKE $${idx}
-          OR description ILIKE $${idx}
-          OR industry ILIKE $${idx}
-          OR location ILIKE $${idx}
-        )`
+        name ILIKE $${idx}
+        OR email ILIKE $${idx}
+        OR description ILIKE $${idx}
+        OR industry ILIKE $${idx}
+        OR location ILIKE $${idx}
+      )`
       );
       vals.push(pat);
     }
 
     if (dto.subscriptionPlan !== undefined && dto.subscriptionPlan !== null) {
-      add('subscription_plan', dto.subscriptionPlan ?? 'free', 'subscription_plan');
+      add('subscription_plan =', dto.subscriptionPlan ?? 'free', 'subscription_plan');
     }
     if (dto.boolVerified !== undefined && dto.boolVerified !== null) {
-      add(`bool_verified =`, dto.boolVerified);
+      add('bool_verified =', dto.boolVerified);
     }
     if (dto.minRating !== undefined && dto.minRating !== null) {
-      add(`company_rating >=`, dto.minRating);
+      add('company_rating >=', dto.minRating);
     }
     if (dto.maxRating !== undefined && dto.maxRating !== null) {
-      add(`company_rating <=`, dto.maxRating);
+      add('company_rating <=', dto.maxRating);
     }
     if (dto.industry !== undefined && dto.industry !== null) {
-      add(`industry ILIKE`, `%${dto.industry}%`);
+      add('industry ILIKE', `%${dto.industry}%`);
     }
     if (dto.location !== undefined && dto.location !== null) {
-      add(`location ILIKE`, `%${dto.location}%`);
+      add('location ILIKE', `%${dto.location}%`);
     }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -231,16 +235,17 @@ export class CompaniesService {
     vals.push(dto.offset ?? 0);
 
     const q = `
-      SELECT id, name, email, admin_id, website, description, industry, location,
-             profile_picture, cover_photo,
-             company_rating, bool_verified, verified_at, subscription_plan,
-             created_at, updated_at
-      FROM companies
-      ${whereSql}
-      ORDER BY ${sortCol} ${order}
-      LIMIT $${vals.length - 1} OFFSET $${vals.length}
-    `;
+    SELECT id, name, email, admin_id, website, description, industry, location,
+           profile_picture, cover_photo,
+           company_rating, bool_verified, verified_at, subscription_plan,
+           created_at, updated_at
+    FROM companies
+    ${whereSql}
+    ORDER BY ${sortCol} ${order}
+    LIMIT $${vals.length - 1} OFFSET $${vals.length}
+  `;
     const { rows } = await this.pool.query<Row>(q, vals);
     return rows;
   }
+
 }
