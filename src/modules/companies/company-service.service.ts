@@ -25,6 +25,14 @@ type Row = {
   updated_at: string;
 };
 
+function normalizePlan(input?: string | null): 'free' | 'basic' | 'pro' {
+  const v = (input ?? '').toString().trim().toUpperCase();
+  if (v === 'basic') return 'basic';
+  if (v === 'pro') return 'pro';
+  return 'free';
+}
+
+
 @Injectable()
 export class CompaniesService {
   private readonly logger = new Logger(CompaniesService.name);
@@ -75,20 +83,22 @@ export class CompaniesService {
 
   async create(dto: CreateCompanyDto): Promise<Row> {
     const q = `
-      INSERT INTO companies (
-        name, email, admin_id, website, description, industry, location,
-        profile_picture, cover_photo,
-        company_rating, bool_verified, verified_at, subscription_plan
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,
-        $8,$9,
-        $10,$11,$12,$13::subscription_plan
-      )
-      RETURNING id, name, email, admin_id, website, description, industry, location,
-                profile_picture, cover_photo,
-                company_rating, bool_verified, verified_at, subscription_plan,
-                created_at, updated_at
-    `;
+    INSERT INTO companies (
+      name, email, admin_id, website, description, industry, location,
+      profile_picture, cover_photo,
+      company_rating, bool_verified, verified_at, subscription_plan
+    ) VALUES (
+      $1,$2,$3,$4,$5,$6,$7,
+      $8,$9,
+      $10,$11,$12,$13::subscription_plan
+    )
+    RETURNING id, name, email, admin_id, website, description, industry, location,
+              profile_picture, cover_photo,
+              company_rating, bool_verified, verified_at, subscription_plan,
+              created_at, updated_at
+  `;
+
+    const plan = normalizePlan(dto.subscriptionPlan as any);
 
     const values = [
       dto.name,
@@ -103,8 +113,9 @@ export class CompaniesService {
       dto.companyRating ?? null,
       dto.boolVerified ?? false,
       dto.verifiedAt ?? null,
-      dto.subscriptionPlan ?? null,
+      plan,
     ];
+
     const { rows } = await this.pool.query<Row>(q, values);
     return rows[0];
   }

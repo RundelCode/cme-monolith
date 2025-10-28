@@ -1,4 +1,3 @@
-// src/modules/companies/companies.controller.ts
 import {
   Controller,
   Get,
@@ -11,11 +10,14 @@ import {
   ParseUUIDPipe,
   ValidationPipe,
   NotFoundException,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { SearchCompaniesDto } from './dto/search-companies.dto';
 import { CompaniesService } from './company-service.service';
+import { HttpAuthGuard } from 'src/common/auth/http-auth.guard';
 
 const bodyPipe = new ValidationPipe({
   transform: true,
@@ -39,8 +41,9 @@ export class CompaniesController {
   }
 
   @Get('search')
-  search(@Query(queryPipe) dto: SearchCompaniesDto) {
-    return this.service.search(dto);
+  async search(@Query(queryPipe) dto: SearchCompaniesDto) {
+    const items = await this.service.search(dto as any);
+    return Array.isArray(items) ? items : { items };
   }
 
   @Get(':id')
@@ -50,16 +53,18 @@ export class CompaniesController {
     return row;
   }
 
+  @UseGuards(HttpAuthGuard)
   @Post()
-  create(@Body(bodyPipe) dto: CreateCompanyDto) {
+  async create(@Req() req: any, @Body(bodyPipe) dto: CreateCompanyDto) {
+    const uid = req?.user?.sub || req?.user?.id || req?.user?.userId || null;
+    dto.adminId = dto.adminId ?? uid ?? null;
+    if (!dto.subscriptionPlan) (dto as any).subscriptionPlan = 'free';
     return this.service.create(dto);
   }
 
+  @UseGuards(HttpAuthGuard)
   @Patch(':id')
-  update(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body(bodyPipe) dto: UpdateCompanyDto,
-  ) {
+  update(@Param('id', new ParseUUIDPipe()) id: string, @Body(bodyPipe) dto: UpdateCompanyDto) {
     return this.service.update(id, dto);
   }
 
