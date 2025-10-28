@@ -7,6 +7,25 @@ function isLocal(url: string) {
   return /localhost|127\.0\.0\.1/i.test(url);
 }
 
+function normalizeUrl(url: string) {
+  try {
+    const u = new URL(url);
+    if (!isLocal(url)) {
+      if (!u.searchParams.get('sslmode')) u.searchParams.set('sslmode', 'require');
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+function purgePgEnv() {
+  const keys = ['PGHOST', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE', 'PGSSLMODE', 'PGSSLROOTCERT'];
+  for (const k of keys) {
+    if (process.env[k]) delete process.env[k];
+  }
+}
+
 @Module({
   imports: [ConfigModule],
   providers: [
@@ -14,8 +33,10 @@ function isLocal(url: string) {
       provide: PG_POOL,
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
-        const cs = (config.get<string>('DATABASE_URL') ?? '').trim();
+        purgePgEnv();
+        let cs = (config.get<string>('DATABASE_URL') ?? '').trim();
         if (!cs) throw new Error('DATABASE_URL is missing');
+        cs = normalizeUrl(cs);
         const pool = new Pool({
           connectionString: cs,
           ssl: isLocal(cs) ? false : { rejectUnauthorized: false },
@@ -32,4 +53,4 @@ function isLocal(url: string) {
   ],
   exports: [PG_POOL],
 })
-export class DbModule { }
+export class DbModule {}

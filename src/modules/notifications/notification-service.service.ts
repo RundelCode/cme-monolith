@@ -21,9 +21,7 @@ export class NotificationsService {
     private readonly email: EmailAdapter,
   ) { }
 
-
   async create(input: CreateNotificationDto) {
-
     const initialStatus = input.channel === 'system' ? 'sent' : 'queued';
     const sql = `
     INSERT INTO public.notifications
@@ -54,14 +52,11 @@ export class NotificationsService {
     const where: string[] = [];
     const params: any[] = [];
     let i = 1;
-
     if (q.userId) { where.push(`user_id = $${i++}`); params.push(q.userId); }
     if (q.status) { where.push(`status = $${i++}`); params.push(q.status); }
     if (q.notificationType) { where.push(`notification_type = $${i++}`); params.push(q.notificationType); }
-
     const limit = q.limit ?? 50;
     const offset = q.offset ?? 0;
-
     const sql = `
       SELECT id, user_id, title, message, notification_type, channel, status, related_id, read_at, created_at, updated_at
       FROM public.notifications
@@ -70,7 +65,6 @@ export class NotificationsService {
       LIMIT $${i++} OFFSET $${i++}
     `;
     params.push(limit, offset);
-
     try {
       const { rows } = await this.pool.query(sql, params);
       return rows;
@@ -104,14 +98,18 @@ export class NotificationsService {
     }
   }
 
-
   @Cron(CronExpression.EVERY_MINUTE)
   async dispatchQueued() {
+    try {
+      await this.pool.query('select 1');
+    } catch (e: any) {
+      this.logger.warn(e?.message || 'db not ready');
+      return;
+    }
     const batchSize = Number(process.env.NOTIF_BATCH_SIZE || 20);
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-
       const { rows } = await client.query(
         `
         SELECT id, user_id, title, message, notification_type, channel
@@ -123,7 +121,6 @@ export class NotificationsService {
         `,
         [batchSize],
       );
-
       for (const n of rows) {
         try {
           await this.dispatchOne(client, n);
@@ -135,7 +132,6 @@ export class NotificationsService {
           );
         }
       }
-
       await client.query('COMMIT');
     } catch (err) {
       await client.query('ROLLBACK');
@@ -174,7 +170,6 @@ export class NotificationsService {
       );
       return;
     }
-
     const { rows: urows } = await client.query(
       `SELECT email, full_name FROM public.profiles WHERE id = $1`,
       [n.user_id],
@@ -182,7 +177,6 @@ export class NotificationsService {
     const userEmail = urows[0]?.email;
     const fullName = urows[0]?.full_name || 'Usuario';
     if (!userEmail) throw new BadRequestException('User email not found');
-
     const subject = n.title;
     const html = `
       <div style="font-family:Inter,Arial,sans-serif">
@@ -192,9 +186,7 @@ export class NotificationsService {
         <small>Hola ${fullName}, esta es una notificación de CME.</small>
       </div>
     `;
-
     await this.email.send(userEmail, subject, html, n.message);
-
     await client.query(
       `UPDATE public.notifications SET status = 'sent', updated_at = now() WHERE id = $1`,
       [n.id],
