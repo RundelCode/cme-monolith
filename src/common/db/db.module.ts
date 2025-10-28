@@ -3,6 +3,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { PG_POOL } from './pg.constants';
 
+function isLocal(url: string) {
+  return /localhost|127\.0\.0\.1/i.test(url);
+}
+
 @Module({
   imports: [ConfigModule],
   providers: [
@@ -10,10 +14,16 @@ import { PG_POOL } from './pg.constants';
       provide: PG_POOL,
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
-        const connectionString = (config.get<string>('DATABASE_URL') ?? '').trim();
-        if (!connectionString) throw new Error('DATABASE_URL is missing');
-        const ssl = /localhost|127\.0\.0\.1/.test(connectionString) ? false : { rejectUnauthorized: false };
-        const pool = new Pool({ connectionString, ssl: ssl as any });
+        const cs = (config.get<string>('DATABASE_URL') ?? '').trim();
+        if (!cs) throw new Error('DATABASE_URL is missing');
+        const useSsl = !isLocal(cs);
+        const pool = new Pool({
+          connectionString: cs,
+          ssl: useSsl ? { rejectUnauthorized: false } : false,
+          max: Number(process.env.DB_MAX || 10),
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 15000,
+        });
         await pool.query('select 1');
         return pool;
       },
@@ -21,4 +31,4 @@ import { PG_POOL } from './pg.constants';
   ],
   exports: [PG_POOL],
 })
-export class DbModule {}
+export class DbModule { }
