@@ -21,7 +21,7 @@ import { HttpAuthGuard } from 'src/common/auth/http-auth.guard';
 
 const bodyPipe = new ValidationPipe({
   transform: true,
-  whitelist: true,
+  whitelist: false,
   forbidNonWhitelisted: false,
 });
 
@@ -56,9 +56,7 @@ export class CompaniesController {
   @UseGuards(HttpAuthGuard)
   @Post()
   async create(@Req() req: any, @Body(bodyPipe) dto: CreateCompanyDto) {
-    const uid = req?.user?.sub || req?.user?.id || req?.user?.userId || null;
-    dto.adminId = dto.adminId ?? uid ?? null;
-    if (!dto.subscriptionPlan) (dto as any).subscriptionPlan = 'free';
+    console.log("[CompaniesController:create] dto recibido >>>", dto);
     return this.service.create(dto);
   }
 

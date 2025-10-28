@@ -37,15 +37,15 @@ export class CreateCompanyDto {
   location?: string | null;
 
   @IsOptional()
-  @IsUrl()
+  @IsString()
   @ToNullIfEmpty()
-  @Transform(({ value, obj }) => value ?? obj?.profile_picture ?? null, { toClassOnly: true })
   profilePicture?: string | null;
 
+
+
   @IsOptional()
-  @IsUrl()
+  @IsString()
   @ToNullIfEmpty()
-  @Transform(({ value, obj }) => value ?? obj?.cover_photo ?? null, { toClassOnly: true })
   coverPhoto?: string | null;
 
   @Expose({ name: 'cover_photo' })
