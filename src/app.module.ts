@@ -10,6 +10,7 @@ import { ReferralServiceModule } from './modules/referrals/referral-service.modu
 import { UploadsModule } from './modules/uploads/uploads-service.module';
 import { AuthModule } from './common/auth/auth.module';
 import { CompanyServiceModule } from './modules/companies/company-service.module';
+import { HealthModule } from './common/health/health.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { CompanyServiceModule } from './modules/companies/company-service.module
     NotificationServiceModule,
     ReferralServiceModule,
     UploadsModule,
+    HealthModule,
   ],
 })
 export class AppModule { }

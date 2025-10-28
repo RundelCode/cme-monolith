@@ -14,12 +14,11 @@ function isLocal(url: string) {
       provide: PG_POOL,
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
-        const connectionString = (config.get<string>('DATABASE_URL') ?? '').trim();
-        if (!connectionString) throw new Error('DATABASE_URL is missing');
-
+        const cs = (config.get<string>('DATABASE_URL') ?? '').trim();
+        if (!cs) throw new Error('DATABASE_URL is missing');
         const pool = new Pool({
-          connectionString,
-          ssl: isLocal(connectionString) ? false : { rejectUnauthorized: false },
+          connectionString: cs,
+          ssl: isLocal(cs) ? false : { rejectUnauthorized: false },
           max: Number(process.env.DB_MAX || 10),
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 10000,
@@ -27,7 +26,6 @@ function isLocal(url: string) {
           query_timeout: 30000,
           keepAlive: true,
         });
-
         return pool;
       },
     },
