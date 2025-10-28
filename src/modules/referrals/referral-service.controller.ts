@@ -5,6 +5,15 @@ import { UpdateReferralDto } from './dto/update-referral.dto';
 import { QueryReferralsDto } from './dto/query-referrals.dto';
 import { UpdateReferralStatusDto } from './dto/update-referral-status.dto';
 
+type ReferralStatus =
+  | 'submitted'
+  | 'accepted_by_candidate'
+  | 'declined_by_candidate'
+  | 'reviewing'
+  | 'rejected'
+  | 'shortlist'
+  | 'hired';
+
 @Controller('referrals')
 export class ReferralsController {
   constructor(private readonly service: ReferralsService) { }
@@ -19,22 +28,6 @@ export class ReferralsController {
     return this.service.list(q);
   }
 
-  @Get(':id')
-  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.findOne(id);
-  }
-
-  @Patch(':id')
-  update(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: UpdateReferralDto) {
-    return this.service.update(id, dto);
-  }
-
-
-  @Delete(':id')
-  remove(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.service.remove(id);
-  }
-
   @Get('by-headhunter/:headhunterId')
   listByHeadhunter(@Param('headhunterId', new ParseUUIDPipe()) headhunterId: string, @Query() q: QueryReferralsDto) {
     return this.service.listByHeadhunter(headhunterId, q);
@@ -45,8 +38,28 @@ export class ReferralsController {
     return this.service.listByCandidate(candidateId, q);
   }
 
+  @Get(':id')
+  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.service.findOne(id);
+  }
+
   @Patch(':id/status')
   updateStatus(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: UpdateReferralStatusDto) {
     return this.service.updateStatus(id, dto.status);
+  }
+
+  @Patch(':id')
+  update(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: UpdateReferralDto) {
+    return this.service.update(id, dto);
+  }
+
+  @Post('update-status')
+  updateStatusLegacy(@Body() body: { id: string; status: ReferralStatus }) {
+    return this.service.updateStatus(body.id, body.status);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.service.remove(id);
   }
 }

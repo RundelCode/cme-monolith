@@ -10,15 +10,17 @@ import { Pool } from 'pg';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { QueryPaymentsDto } from './dto/query-payments.dto';
-import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
+import { MercadoPagoConfig, Preference, Payment as MPPayment } from 'mercadopago';
 import { StartReferralCheckoutDto } from './dto/start-hire-checkout.dto';
 import { PG_POOL } from 'src/common/db/pg.constants';
+
+type ListInput = QueryPaymentsDto & { limit: number; offset: number };
 
 @Injectable()
 export class PaymentServiceService {
   private client: MercadoPagoConfig;
   private preferences: Preference;
-  private payments: Payment;
+  private payments: MPPayment;
 
   private readonly FRONTEND = (process.env.FRONTEND_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '');
   private readonly API_BASE = (() => {
@@ -34,7 +36,62 @@ export class PaymentServiceService {
     if (!accessToken) throw new Error('MP_ACCESS_TOKEN is required');
     this.client = new MercadoPagoConfig({ accessToken });
     this.preferences = new Preference(this.client);
-    this.payments = new Payment(this.client);
+    this.payments = new MPPayment(this.client);
+  }
+
+  /* ===================== Helpers ===================== */
+
+  /** Convierte string ISO o epoch-ms a Date; si es inválida, retorna null */
+  private parseDateLoose(v?: string | null): Date | null {
+    if (!v) return null;
+    const asNum = Number(v);
+    if (!Number.isNaN(asNum) && asNum > 0) {
+      try { return new Date(asNum); } catch { /* ignore */ }
+    }
+    const t = Date.parse(v);
+    if (!Number.isNaN(t)) return new Date(t);
+    return null;
+  }
+
+  private buildWhere(base: string[], params: any[], q: ListInput): { whereSql: string; params: any[] } {
+    let idx = params.length + 1;
+
+    if (q.companyId) { base.push(`company_id = $${idx++}`); params.push(q.companyId); }
+    if (q.headhunterId) { base.push(`headhunter_id = $${idx++}`); params.push(q.headhunterId); }
+    if (q.jobOfferId) { base.push(`job_offer_id = $${idx++}`); params.push(q.jobOfferId); }
+
+    if (q.direction) { base.push(`direction = $${idx++}::payment_direction`); params.push(q.direction); }
+    if (q.status) { base.push(`status = $${idx++}::payment_status`); params.push(q.status); }
+
+    const fromDate = this.parseDateLoose(q.from as any);
+    const toDate = this.parseDateLoose(q.to as any);
+    if (fromDate) { base.push(`created_at >= $${idx++}`); params.push(fromDate.toISOString()); }
+    if (toDate) { base.push(`created_at <= $${idx++}`); params.push(toDate.toISOString()); }
+
+    const whereSql = base.length ? `WHERE ${base.join(' AND ')}` : '';
+    return { whereSql, params };
+  }
+
+  private async countAndList(whereSql: string, params: any[], limit: number, offset: number) {
+    const countSql = `SELECT COUNT(*)::int AS total FROM public.payments ${whereSql};`;
+    const listSql = `
+      SELECT id, job_offer_id, headhunter_id, company_id, amount, currency, direction, psp_payment_id, status, created_at, updated_at
+      FROM public.payments
+      ${whereSql}
+      ORDER BY created_at DESC
+      LIMIT $${params.length + 1}
+      OFFSET $${params.length + 2};
+    `;
+    const countParams = params.slice();
+    const listParams = params.concat([limit, offset]);
+
+    // Logs de depuración
+    console.debug('[payments:list] SQL COUNT:', countSql, '::', countParams);
+    console.debug('[payments:list] SQL LIST :', listSql, '::', listParams);
+
+    const { rows: [c] } = await this.pool.query(countSql, countParams);
+    const { rows } = await this.pool.query(listSql, listParams);
+    return { total: Number(c?.total ?? 0), items: rows };
   }
 
   private buildBackUrls(paymentId: string) {
@@ -47,6 +104,8 @@ export class PaymentServiceService {
       throw new BadRequestException('FRONTEND_BASE_URL must be absolute (http/https)');
     return { success, failure, pending };
   }
+
+  /* ===================== Create ===================== */
 
   async create(input: CreatePaymentDto) {
     const sql = `
@@ -75,14 +134,108 @@ export class PaymentServiceService {
     }
   }
 
-  async list(_q: QueryPaymentsDto) {
-    // deja aquí tu implementación original
-    throw new Error('Implement list() con tu SQL actual');
+  /* ===================== LIST (general) ===================== */
+
+  async list(qIn: QueryPaymentsDto) {
+    const q: ListInput = {
+      ...qIn,
+      limit: Math.max(1, Math.min(100, Number(qIn.limit ?? 20))),
+      offset: Math.max(0, Number(qIn.offset ?? 0)),
+    };
+
+    const where: string[] = [];
+    const params: any[] = [];
+
+    const { whereSql, params: finalParams } = this.buildWhere(where, params, q);
+    console.debug('[payments:list] where:', whereSql || '(sin where)', 'params:', finalParams);
+
+    return this.countAndList(whereSql, finalParams, q.limit, q.offset);
   }
-  async listMine(_opts: any) {
-    // deja aquí tu implementación original
-    throw new Error('Implement listMine() con tu SQL actual');
+
+  /* ===================== LIST MINE (resolviendo admin_id) ===================== */
+
+  async listMine(opts: {
+    meCompanyId: string | null;
+    meHeadhunterId: string | null;
+    query: QueryPaymentsDto;
+    tryResolveCompanyFromAdmin?: boolean;
+  }) {
+    const { query } = opts;
+    const q: ListInput = {
+      ...query,
+      limit: Math.max(1, Math.min(100, Number(query.limit ?? 20))),
+      offset: Math.max(0, Number(query.offset ?? 0)),
+    };
+
+    let meCompanyId = opts.meCompanyId ?? null;
+    let meHeadhunterId = opts.meHeadhunterId ?? null;
+
+    // Intentamos resolver company_id por admin_id (según tu schema)
+    if (!meCompanyId && opts.tryResolveCompanyFromAdmin && meHeadhunterId) {
+      try {
+        const { rows: compRows } = await this.pool.query(
+          `SELECT id FROM public.companies WHERE admin_id = $1 LIMIT 1`,
+          [meHeadhunterId],
+        );
+        if (compRows[0]?.id) {
+          meCompanyId = compRows[0].id;
+          console.debug('[payments:listMine] Resuelto meCompanyId por admin_id:', meCompanyId);
+        }
+      } catch (e) {
+        console.warn('[payments:listMine] Error resolviendo companies.admin_id -> company_id:', (e as any)?.message);
+      }
+    }
+
+    // Si no hay company, intentamos usar siempre el user.id como headhunterId (listado “del usuario”)
+    if (!meHeadhunterId) {
+      try {
+        const { rows: who } = await this.pool.query(`SELECT current_setting('app.user_id', true) AS uid`);
+        if (who[0]?.uid) meHeadhunterId = who[0].uid;
+      } catch {
+        // si no hay GUC app.user_id, nos quedamos con null y seguimos
+      }
+    }
+
+    const where: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    // Caso “all=true”: OR entre company y headhunter si ambos existen
+    const allFlag = typeof q.all === 'string' ? q.all === 'true' : !!q.all;
+
+    if (allFlag && meCompanyId && meHeadhunterId) {
+      where.push(`(company_id = $${idx++} OR headhunter_id = $${idx++})`);
+      params.push(meCompanyId, meHeadhunterId);
+    } else if (meCompanyId) {
+      where.push(`company_id = $${idx++}`);
+      params.push(meCompanyId);
+    } else if (meHeadhunterId) {
+      where.push(`headhunter_id = $${idx++}`);
+      params.push(meHeadhunterId);
+    } else {
+      // Sin señales ⇒ no romper: devolver vacío coherente
+      console.debug('[payments:listMine] Sin companyId ni headhunterId. Devolviendo vacío.');
+      return { total: 0, items: [] };
+    }
+
+    // Filtros extra del DTO, excepto company/headhunter (ya metidos)
+    const extraWhere: string[] = [];
+    const built = this.buildWhere(extraWhere, [], q);
+    const cleanedWhere = built.whereSql
+      .replace(/WHERE\s*/i, '')
+      .split(/\s+AND\s+/i)
+      .filter((frag) => frag && !/^(company_id|headhunter_id)\s*=/.test(frag));
+
+    if (cleanedWhere.length) where.push(...cleanedWhere);
+    const finalParams = params.concat(built.params);
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    console.debug('[payments:listMine] where:', whereSql, 'params:', finalParams);
+
+    return this.countAndList(whereSql, finalParams, q.limit, q.offset);
   }
+
+  /* ===================== CRUD y MP ===================== */
 
   async findOne(id: string) {
     const { rows } = await this.pool.query(`SELECT * FROM public.payments WHERE id = $1`, [id]);
@@ -161,7 +314,7 @@ export class PaymentServiceService {
             currency_id: input.currency ?? 'COP',
           }],
           back_urls,
-          // auto_return: 'approved', // actívalo cuando tengas las páginas del front listas
+          // auto_return: 'approved',
           notification_url: `${this.API_BASE}/payments/webhook?pid=${payment.id}`,
           metadata: {
             paymentId: payment.id,

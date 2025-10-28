@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Param, Body, Query, ParseUUIDPipe, UseGuards, Req
+  Param, Body, Query, ParseUUIDPipe
 } from '@nestjs/common';
 import { PaymentServiceService } from './payment-service.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -9,7 +9,6 @@ import { QueryPaymentsDto } from './dto/query-payments.dto';
 import { StartReferralCheckoutDto } from './dto/start-hire-checkout.dto';
 import { AuthUser } from 'src/common/auth/auth-user.decorator';
 import { Public } from 'src/common/auth/public.decorator';
-
 
 @Controller('payments')
 export class PaymentServiceController {
@@ -22,21 +21,27 @@ export class PaymentServiceController {
 
   @Get()
   async list(@Query() q: QueryPaymentsDto, @AuthUser() user: any) {
+    // Normalizamos paginación
     const limit = Math.max(1, Math.min(100, Number(q.limit ?? 20)));
     const offset = Math.max(0, Number(q.offset ?? 0));
+    const query: QueryPaymentsDto = { ...q, limit, offset };
 
     const mineFlag =
       (typeof q.mine === 'string' ? q.mine === 'true' : !!q.mine) ||
       (!q.companyId && !q.headhunterId);
 
     if (mineFlag) {
+      const meId = user?.id ?? null;
+
       return this.service.listMine({
         meCompanyId: user?.companyId ?? null,
-        meHeadhunterId: user?.id ?? null,
-        query: { ...q, limit, offset },
+        meHeadhunterId: meId,
+        query,
+        tryResolveCompanyFromAdmin: true,
       });
     }
-    return this.service.list({ ...q, limit, offset });
+
+    return this.service.list(query);
   }
 
   @Get(':id')
@@ -66,7 +71,7 @@ export class PaymentServiceController {
 
   @Public()
   @Post('webhook')
-  async mpWebhook(@Req() req: any, @Query('pid') pid: string) {
+  async mpWebhook(@Body() req: any, @Query('pid') pid: string) {
     return this.service.handleMercadoPagoWebhook(req, pid);
   }
 }

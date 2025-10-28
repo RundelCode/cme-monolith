@@ -1,4 +1,5 @@
-import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+// src/modules/companies/company-service.service.ts
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
 import { PG_POOL } from 'src/common/db/pg.constants';
 import { CreateCompanyDto } from './dto/create-company.dto';
@@ -88,6 +89,7 @@ export class CompaniesService {
                 company_rating, bool_verified, verified_at, subscription_plan,
                 created_at, updated_at
     `;
+
     const values = [
       dto.name,
       dto.email,
@@ -99,7 +101,7 @@ export class CompaniesService {
       dto.profilePicture ?? null,
       dto.coverPhoto ?? null,
       dto.companyRating ?? null,
-      dto.boolVerified ?? null,
+      dto.boolVerified ?? false,
       dto.verifiedAt ?? null,
       dto.subscriptionPlan ?? null,
     ];
@@ -126,10 +128,20 @@ export class CompaniesService {
     if (dto.profilePicture !== undefined) add('profile_picture', dto.profilePicture ?? null);
     if (dto.coverPhoto !== undefined) add('cover_photo', dto.coverPhoto ?? null);
     if (dto.companyRating !== undefined) add('company_rating', dto.companyRating ?? null);
-    if (dto.boolVerified !== undefined) add('bool_verified', dto.boolVerified ?? null);
+
+    let touchedBool = false;
+    if (dto.boolVerified !== undefined) {
+      add('bool_verified', dto.boolVerified);
+      touchedBool = true;
+    }
     if (dto.verifiedAt !== undefined) add('verified_at', dto.verifiedAt ?? null);
     if (dto.subscriptionPlan !== undefined) {
       add('subscription_plan', dto.subscriptionPlan ?? null, 'subscription_plan');
+    }
+
+
+    if (!touchedBool) {
+      sets.push(`bool_verified = COALESCE(bool_verified, FALSE)`);
     }
 
     if (sets.length === 0) {
@@ -137,18 +149,19 @@ export class CompaniesService {
     }
 
     const q = `
-      UPDATE companies
-      SET ${sets.join(', ')}, updated_at = NOW()
-      WHERE id = $${vals.length + 1}
-      RETURNING id, name, email, admin_id, website, description, industry, location,
-                profile_picture, cover_photo,
-                company_rating, bool_verified, verified_at, subscription_plan,
-                created_at, updated_at
-    `;
+    UPDATE companies
+    SET ${sets.join(', ')}, updated_at = NOW()
+    WHERE id = $${vals.length + 1}
+    RETURNING id, name, email, admin_id, website, description, industry, location,
+              profile_picture, cover_photo,
+              company_rating, bool_verified, verified_at, subscription_plan,
+              created_at, updated_at
+  `;
     vals.push(id);
     const { rows } = await this.pool.query<Row>(q, vals);
     return rows[0];
   }
+
 
   async remove(id: string) {
     const q = `DELETE FROM companies WHERE id = $1`;
@@ -186,7 +199,7 @@ export class CompaniesService {
     }
 
     if (dto.subscriptionPlan !== undefined && dto.subscriptionPlan !== null) {
-      add(`subscription_plan =`, dto.subscriptionPlan, 'subscription_plan');
+      add('subscription_plan', dto.subscriptionPlan ?? 'free', 'subscription_plan');
     }
     if (dto.boolVerified !== undefined && dto.boolVerified !== null) {
       add(`bool_verified =`, dto.boolVerified);

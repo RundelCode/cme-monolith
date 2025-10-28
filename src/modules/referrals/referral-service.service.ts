@@ -23,11 +23,7 @@ type ReferralStatus =
 
 @Injectable()
 export class ReferralsService {
-  constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
-
-  // --------------------------
-  // Helpers
-  // --------------------------
+  constructor(@Inject(PG_POOL) private readonly pool: Pool) { }
 
   private async generateUniqueReferralCode(): Promise<string> {
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -45,7 +41,6 @@ export class ReferralsService {
     return gen();
   }
 
-  /** Evita duplicados lógicos sin tocar el esquema */
   private async _ensureNotDuplicate(input: {
     headhunterId: string;
     candidateId?: string | null;
@@ -58,9 +53,10 @@ export class ReferralsService {
         ? `headhunter_id = $1 AND candidate_id = $2 AND job_offer_id = $3`
         : `headhunter_id = $1 AND candidate_id IS NULL AND job_offer_id = $2`;
 
-    const params = candidateId && candidateId.trim().length
-      ? [headhunterId, candidateId, jobOfferId]
-      : [headhunterId, jobOfferId];
+    const params =
+      candidateId && candidateId.trim().length
+        ? [headhunterId, candidateId, jobOfferId]
+        : [headhunterId, jobOfferId];
 
     const { rows } = await this.pool.query(
       `SELECT id FROM public.referrals WHERE ${where} LIMIT 1`,
@@ -71,63 +67,7 @@ export class ReferralsService {
     }
   }
 
-  /** Trae referral + company_id vía job_offer_id (para validaciones) */
-  private async _getReferralWithCompany(referralId: string) {
-    const sql = `
-      SELECT r.id,
-             r.status,
-             r.candidate_id,
-             r.job_offer_id,
-             r.headhunter_id,
-             j.company_id
-      FROM public.referrals r
-      JOIN public.job_offers j ON j.id = r.job_offer_id
-      WHERE r.id = $1
-    `;
-    const { rows } = await this.pool.query(sql, [referralId]);
-    const row = rows[0];
-    if (!row) throw new NotFoundException('referral_not_found');
-    return row as {
-      id: string;
-      status: ReferralStatus;
-      candidate_id: string | null;
-      job_offer_id: string;
-      headhunter_id: string;
-      company_id: string;
-    };
-  }
-
-  /** ¿Existe un pago IN con status succeeded para esta referral (oferta/empresa)? */
-  private async _hasSucceededInPaymentForReferral(referralId: string): Promise<boolean> {
-    const sql = `
-      SELECT EXISTS(
-        SELECT 1
-        FROM public.referrals r
-        JOIN public.job_offers j ON j.id = r.job_offer_id
-        JOIN public.payments   p ON p.job_offer_id = r.job_offer_id AND p.company_id = j.company_id
-        WHERE r.id = $1
-          AND p.direction = 'in'::payment_direction
-          AND p.status = 'succeeded'::payment_status
-      ) AS ok
-    `;
-    const { rows } = await this.pool.query(sql, [referralId]);
-    return !!rows?.[0]?.ok;
-  }
-
-  /** Si se intenta pasar a hired sin pago previo, rechaza */
-  private async _assertCanSetHired(referralId: string) {
-    const paid = await this._hasSucceededInPaymentForReferral(referralId);
-    if (!paid) {
-      throw new BadRequestException('cannot_hire_without_payment');
-    }
-  }
-
-  // --------------------------
-  // CRUD
-  // --------------------------
-
   async create(input: CreateReferralDto) {
-    // Evitar duplicados lógicos (mismo headhunter + candidate + job_offer)
     await this._ensureNotDuplicate({
       headhunterId: input.headhunterId,
       candidateId: input.candidateId ?? null,
@@ -176,11 +116,11 @@ export class ReferralsService {
     let i = 1;
 
     if (q.headhunterId) { where.push(`headhunter_id = $${i++}`); params.push(q.headhunterId); }
-    if (q.candidateId)  { where.push(`candidate_id = $${i++}`);  params.push(q.candidateId); }
-    if (q.jobOfferId)   { where.push(`job_offer_id = $${i++}`);  params.push(q.jobOfferId); }
-    if (q.status)       { where.push(`status = $${i++}`);        params.push(q.status); }
+    if (q.candidateId) { where.push(`candidate_id = $${i++}`); params.push(q.candidateId); }
+    if (q.jobOfferId) { where.push(`job_offer_id = $${i++}`); params.push(q.jobOfferId); }
+    if (q.status) { where.push(`status = $${i++}`); params.push(q.status); }
 
-    const limit  = q.limit  ?? 50;
+    const limit = q.limit ?? 50;
     const offset = q.offset ?? 0;
 
     const sql = `
@@ -201,7 +141,7 @@ export class ReferralsService {
   }
 
   async listByHeadhunter(headhunterId: string, q: QueryReferralsDto) {
-    const limit  = q.limit  ?? 50;
+    const limit = q.limit ?? 50;
     const offset = q.offset ?? 0;
 
     const sql = `
@@ -220,7 +160,7 @@ export class ReferralsService {
   }
 
   async listByCandidate(candidateId: string, q: QueryReferralsDto) {
-    const limit  = q.limit  ?? 50;
+    const limit = q.limit ?? 50;
     const offset = q.offset ?? 0;
 
     const sql = `
@@ -252,17 +192,10 @@ export class ReferralsService {
     }
   }
 
-  /**
-   * Patch genérico (status, candidate_id).
-   * Si el status objetivo es 'hired', valida pago previo IN:succeeded.
-   */
   async update(id: string, patch: UpdateReferralDto) {
     const sets: string[] = [];
     const params: any[] = [];
     let i = 1;
-
-    const wantsHired =
-      patch.status !== undefined && String(patch.status) === 'hired';
 
     if (patch.status !== undefined) {
       sets.push(`status = $${i++}::referral_status`);
@@ -280,11 +213,6 @@ export class ReferralsService {
     }
 
     if (!sets.length) return this.findOne(id);
-
-    // Regla: no se permite hired sin pago
-    if (wantsHired) {
-      await this._assertCanSetHired(id);
-    }
 
     sets.push(`updated_at = now()`);
     params.push(id);
@@ -307,26 +235,10 @@ export class ReferralsService {
     }
   }
 
-  /**
-   * Update de status directo.
-   * Aplica la misma regla de negocio: hired requiere pago previo.
-   */
   async updateStatus(
     id: string,
-    status:
-      | 'submitted'
-      | 'accepted_by_candidate'
-      | 'declined_by_candidate'
-      | 'reviewing'
-      | 'rejected'
-      | 'shortlist'
-      | 'hired',
+    status: ReferralStatus,
   ) {
-    // Bloqueo de dominio para hired
-    if (status === 'hired') {
-      await this._assertCanSetHired(id);
-    }
-
     try {
       const { rows } = await this.pool.query(
         `

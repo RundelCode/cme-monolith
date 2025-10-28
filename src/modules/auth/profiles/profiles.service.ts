@@ -58,45 +58,29 @@ export class ProfilesService {
          profile_picture, cover_photo, occupation, about_me, skills,
          experience, education, cv_url, reputation_score, created_at, updated_at)
       VALUES
-        ($1,$2,$3,$4,$5::user_role,$6::user_status,
-         $7,$8,$9,$10,$11,$12,$13,$14,$15, now(), now())
+        ($1,$2,NULLIF($3,''),NULLIF($4,''),$5::user_role,$6::user_status,
+         NULLIF($7,''),NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),$11,
+         $12::jsonb,$13::jsonb,NULLIF($14,''),$15, now(), now())
       ON CONFLICT (id) DO UPDATE SET
-        email = EXCLUDED.email,
-        full_name = EXCLUDED.full_name,
-        phone = EXCLUDED.phone,
-        role = EXCLUDED.role,
-        status = EXCLUDED.status,
-
-        /* No sobreescribir avatar personalizado: sólo si estaba vacío o era de Google */
-        profile_picture = CASE
-          WHEN public.profiles.profile_picture IS NULL
-               OR public.profiles.profile_picture = ''
-               OR public.profiles.profile_picture LIKE 'https://lh3.googleusercontent.com/%'
-          THEN COALESCE(EXCLUDED.profile_picture, public.profiles.profile_picture)
-          ELSE public.profiles.profile_picture
-        END,
-
-        /* opcional: misma idea para cover si lo quieres */
-        cover_photo = CASE
-          WHEN public.profiles.cover_photo IS NULL
-               OR public.profiles.cover_photo = ''
-          THEN COALESCE(EXCLUDED.cover_photo, public.profiles.cover_photo)
-          ELSE public.profiles.cover_photo
-        END,
-
-        occupation = EXCLUDED.occupation,
-        about_me = EXCLUDED.about_me,
-        skills = EXCLUDED.skills,
-        experience = EXCLUDED.experience,
-        education = EXCLUDED.education,
-        cv_url = EXCLUDED.cv_url,
-        reputation_score = EXCLUDED.reputation_score,
+        email = COALESCE(NULLIF(EXCLUDED.email,''), public.profiles.email),
+        full_name = COALESCE(NULLIF(EXCLUDED.full_name,''), public.profiles.full_name),
+        phone = COALESCE(NULLIF(EXCLUDED.phone,''), public.profiles.phone),
+        role = COALESCE(EXCLUDED.role, public.profiles.role),
+        status = COALESCE(EXCLUDED.status, public.profiles.status),
+        profile_picture = COALESCE(NULLIF(EXCLUDED.profile_picture,''), public.profiles.profile_picture),
+        cover_photo = COALESCE(NULLIF(EXCLUDED.cover_photo,''), public.profiles.cover_photo),
+        occupation = COALESCE(NULLIF(EXCLUDED.occupation,''), public.profiles.occupation),
+        about_me = COALESCE(NULLIF(EXCLUDED.about_me,''), public.profiles.about_me),
+        skills = COALESCE(EXCLUDED.skills, public.profiles.skills),
+        experience = COALESCE(EXCLUDED.experience, public.profiles.experience),
+        education = COALESCE(EXCLUDED.education, public.profiles.education),
+        cv_url = COALESCE(NULLIF(EXCLUDED.cv_url,''), public.profiles.cv_url),
+        reputation_score = COALESCE(EXCLUDED.reputation_score, public.profiles.reputation_score),
         updated_at = now()
       RETURNING
         id, email, full_name, phone, role, status,
         profile_picture, cover_photo, occupation, about_me,
         skills,
-        -- 🔽 aquí normalizamos a arrays en SQL por si son null
         COALESCE(
           CASE
             WHEN jsonb_typeof(experience) = 'array' THEN experience
@@ -117,7 +101,7 @@ export class ProfilesService {
     const params = [
       userId,
       payload.email ?? null,
-      payload.full_name ?? '',
+      payload.full_name ?? null,
       payload.phone ?? null,
       payload.role ?? 'candidate',
       payload.status ?? 'active',
@@ -125,10 +109,9 @@ export class ProfilesService {
       payload.cover_photo ?? null,
       payload.occupation ?? null,
       payload.about_me ?? null,
-      payload.skills ?? null,
-      // Guardamos el json como venga (objeto/array) y lo normalizamos al leer
-      payload.experience ?? null,
-      payload.education ?? null,
+      Array.isArray(payload.skills) && payload.skills.length ? payload.skills : null,
+      payload.experience == null ? null : JSON.stringify(payload.experience),
+      payload.education == null ? null : JSON.stringify(payload.education),
       payload.cv_url ?? null,
       payload.reputation_score ?? null,
     ];
@@ -144,7 +127,6 @@ export class ProfilesService {
         id, email, full_name, phone, role, status,
         profile_picture, cover_photo, occupation, about_me,
         skills,
-        -- 🔽 normalización a arrays para evitar Expected Iterable
         COALESCE(
           CASE
             WHEN jsonb_typeof(experience) = 'array' THEN experience
@@ -169,7 +151,6 @@ export class ProfilesService {
     return this.normalizeRow(rows[0]);
   }
 
-  // src/profiles/profiles.service.ts
   async updatePartial(userId: string, patch: Record<string, any>) {
     const allowed = [
       'email', 'full_name', 'phone', 'role', 'status',
@@ -182,7 +163,6 @@ export class ProfilesService {
 
     for (const key of allowed) {
       if (patch[key] !== undefined) {
-        // role/status ya los casteas arriba; mantenlo
         if (key === 'role') {
           params.push(patch[key]);
           sets.push(`role = $${params.length}::user_role`);
@@ -190,13 +170,10 @@ export class ProfilesService {
           params.push(patch[key]);
           sets.push(`status = $${params.length}::user_status`);
         } else if (key === 'skills') {
-          // Asegura text[]
-          // Si te llega [], envía NULL o un array vacío explícito
           const skills = Array.isArray(patch.skills) && patch.skills.length ? patch.skills : null;
           params.push(skills);
           sets.push(`skills = $${params.length}::text[]`);
         } else if (key === 'experience' || key === 'education') {
-          // Asegura jsonb (array u objeto o null)
           const jsonVal = patch[key] == null ? null : JSON.stringify(patch[key]);
           params.push(jsonVal);
           sets.push(`${key} = $${params.length}::jsonb`);
@@ -204,8 +181,7 @@ export class ProfilesService {
           params.push(patch[key]);
           sets.push(`reputation_score = $${params.length}::numeric`);
         } else {
-          // texto/otros
-          params.push(patch[key]);
+          params.push(patch[key] === '' ? null : patch[key]);
           sets.push(`${key} = $${params.length}`);
         }
       }
@@ -270,7 +246,6 @@ export class ProfilesService {
     return this.normalizeRow(rows[0]);
   }
 
-
   async search(dto: SearchProfilesDto) {
     const where: string[] = [];
     const vals: any[] = [];
@@ -323,7 +298,6 @@ export class ProfilesService {
       SELECT
         id, email, full_name, phone, role, status, profile_picture, cover_photo,
         occupation, about_me, skills,
-        -- 🔽 normalizamos a arrays para evitar errores en GraphQL
         COALESCE(
           CASE
             WHEN jsonb_typeof(experience) = 'array' THEN experience

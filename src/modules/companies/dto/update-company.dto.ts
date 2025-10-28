@@ -1,3 +1,4 @@
+// src/modules/companies/dto/update-company.dto.ts
 import { Expose, Transform } from 'class-transformer';
 import { IsEmail, IsEnum, IsOptional, IsString, IsUrl, IsBoolean, IsNumber, IsUUID } from 'class-validator';
 import { SubscriptionPlan } from './subscription-plan.enum';
@@ -8,9 +9,9 @@ export class UpdateCompanyDto {
   @IsOptional() @IsEmail() email?: string;
 
   @IsOptional()
-    @IsUUID()
-    @ToNullIfEmpty()
-    adminId?: string | null;
+  @IsUUID()
+  @ToNullIfEmpty()
+  adminId?: string | null;
 
   @IsOptional() @IsUrl() @ToNullIfEmpty()
   website?: string | null;

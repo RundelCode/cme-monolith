@@ -1,3 +1,4 @@
+// src/modules/companies/dto/create-company.dto.ts
 import { Expose, Transform } from 'class-transformer';
 import { IsEmail, IsEnum, IsOptional, IsString, IsUrl, IsBoolean, IsNumber, IsUUID } from 'class-validator';
 import { SubscriptionPlan } from './subscription-plan.enum';
@@ -47,9 +48,8 @@ export class CreateCompanyDto {
   @Transform(({ value, obj }) => value ?? obj?.cover_photo ?? null, { toClassOnly: true })
   coverPhoto?: string | null;
 
-
   @Expose({ name: 'cover_photo' })
-  private _cover?: unknown; 
+  private _cover?: unknown;
 
   @IsOptional()
   @IsNumber()
@@ -60,7 +60,6 @@ export class CreateCompanyDto {
   @IsBoolean()
   @ToBooleanOrNull()
   boolVerified?: boolean | null;
-
 
   @IsOptional()
   @ToNullIfEmpty()

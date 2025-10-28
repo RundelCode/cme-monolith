@@ -1,3 +1,4 @@
+// src/modules/companies/companies.controller.ts
 import {
   Controller,
   Get,
@@ -30,7 +31,7 @@ const queryPipe = new ValidationPipe({
 
 @Controller('companies')
 export class CompaniesController {
-  constructor(private readonly service: CompaniesService) {}
+  constructor(private readonly service: CompaniesService) { }
 
   @Get()
   list(@Query('limit') limit = 50, @Query('offset') offset = 0) {

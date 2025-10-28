@@ -9,7 +9,7 @@ export class UpdateReferralDto {
     'reviewing',
     'rejected',
     'shortlist',
-    'hired',
+    'hired'
   ])
   status?:
     | 'submitted'
