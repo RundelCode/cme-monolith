@@ -7,8 +7,8 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { QueryPaymentsDto } from './dto/query-payments.dto';
 import { StartReferralCheckoutDto } from './dto/start-hire-checkout.dto';
-import { AuthUser } from 'src/common/auth/auth-user.decorator';
-import { Public } from 'src/common/auth/public.decorator';
+import { AuthUser } from '../../common/auth/auth-user.decorator';
+import { Public } from '../../common/auth/public.decorator';
 
 @Controller('payments')
 export class PaymentServiceController {

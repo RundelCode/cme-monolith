@@ -5,7 +5,7 @@ import {
 import { ProfilesService } from './profiles.service';
 import { SearchProfilesDto } from '../dto/search-profiles.dto';
 import { HttpAuthGuard } from 'src/common/auth/http-auth.guard';
-import { AuthUser } from 'src/common/auth/auth-user.decorator';
+import { AuthUser } from '../../../common/auth/auth-user.decorator';
 
 const queryPipe = new ValidationPipe({
   transform: true,

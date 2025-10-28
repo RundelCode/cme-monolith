@@ -48,7 +48,7 @@ function purgePgEnv() {
         const database = c.database || undefined;
         const user = c.user || undefined;
         const password = c.password || undefined;
-        const useSsl = host ? !isLocalHost(host) : true;
+        const useSsl = false;
         const pool = new Pool({
           host,
           port,
