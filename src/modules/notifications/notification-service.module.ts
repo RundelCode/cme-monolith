@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationsController } from './notification-service.controller';
 import { NotificationsService } from './notification-service.service';
+import { EmailAdapter } from './email.adapter';
 import { DbModule } from 'src/common/db/db.module';
 
 @Module({
@@ -15,6 +16,6 @@ import { DbModule } from 'src/common/db/db.module';
     DbModule,
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
+  providers: [NotificationsService, EmailAdapter],
 })
 export class NotificationServiceModule {}
