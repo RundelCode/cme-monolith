@@ -13,22 +13,9 @@ function isLocalHost(h?: string | null) {
 
 function purgePgEnv() {
   const keys = [
-    'PGHOST',
-    'PGHOSTADDR',
-    'PGPORT',
-    'PGUSER',
-    'PGPASSWORD',
-    'PGDATABASE',
-    'PGAPPNAME',
-    'PGCONNECT_TIMEOUT',
-    'PGSSLMODE',
-    'PGSSLROOTCERT',
-    'PGSSLCERT',
-    'PGSSLKEY',
-    'PGREQUIRESSL',
-    'PGSERVICE',
-    'PGSERVICEFILE',
-    'PGOPTIONS',
+    'PGHOST', 'PGHOSTADDR', 'PGPORT', 'PGUSER', 'PGPASSWORD', 'PGDATABASE',
+    'PGAPPNAME', 'PGCONNECT_TIMEOUT', 'PGSSLMODE', 'PGSSLROOTCERT', 'PGSSLCERT',
+    'PGSSLKEY', 'PGREQUIRESSL', 'PGSERVICE', 'PGSERVICEFILE', 'PGOPTIONS',
   ];
   for (const k of keys) if (process.env[k]) delete process.env[k];
 }
@@ -41,6 +28,10 @@ function purgePgEnv() {
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
         purgePgEnv();
+
+        if (typeof dns.setDefaultResultOrder === 'function') {
+          dns.setDefaultResultOrder('ipv4first');
+        }
 
         const raw = (config.get<string>('DATABASE_URL') ?? '').trim();
         if (!raw) throw new Error('DATABASE_URL is missing');
@@ -55,17 +46,13 @@ function purgePgEnv() {
         const onLocal = isLocalHost(host);
         const mustUseSSL = !onLocal;
 
-        // Forzar IPv4: resolvemos el hostname a una IPv4 antes de crear el Pool
-        const resolvedHost =
-          host ? (await dns.promises.lookup(host, { family: 4 })).address : host;
-
         const pool = new Pool({
-          host: resolvedHost,
+          host,
           port,
           database,
           user,
           password,
-          ssl: mustUseSSL ? { rejectUnauthorized: false } : false,
+          ssl: mustUseSSL ? { rejectUnauthorized: false, servername: host } : false, // ← SNI explícito
           max: Number(process.env.DB_MAX || 10),
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 20000,
