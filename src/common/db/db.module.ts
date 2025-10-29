@@ -50,6 +50,8 @@ async function sleep(ms: number) {
         const onLocal = isLocalHost(host);
         const mustUseSSL = !onLocal;
 
+        console.log('[DB] Using host/port/db/user =>',
+        host, port, database, user);
         const pool = new Pool({
           host,
           port,
