@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Pool } from 'pg';
 import { PG_POOL } from './pg.constants';
 import { parse } from 'pg-connection-string';
+import dns from 'node:dns';
 
 function isLocalHost(h?: string | null) {
   if (!h) return false;
@@ -40,29 +41,48 @@ function purgePgEnv() {
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => {
         purgePgEnv();
-        const url = (config.get<string>('DATABASE_URL') ?? '').trim();
-        if (!url) throw new Error('DATABASE_URL is missing');
-        const c = parse(url);
-        const host = c.host || undefined;
+
+        const raw = (config.get<string>('DATABASE_URL') ?? '').trim();
+        if (!raw) throw new Error('DATABASE_URL is missing');
+
+        const c = parse(raw);
+        const host = c.host ?? undefined;
         const port = c.port ? Number(c.port) : undefined;
-        const database = c.database || undefined;
-        const user = c.user || undefined;
-        const password = c.password || undefined;
-        const useSsl = false;
+        const database = c.database ?? undefined;
+        const user = c.user ?? undefined;
+        const password = c.password ?? undefined;
+
+        const onLocal = isLocalHost(host);
+        const mustUseSSL = !onLocal;
+
+        // Forzar IPv4: resolvemos el hostname a una IPv4 antes de crear el Pool
+        const resolvedHost =
+          host ? (await dns.promises.lookup(host, { family: 4 })).address : host;
+
         const pool = new Pool({
-          host,
+          host: resolvedHost,
           port,
           database,
           user,
           password,
-          ssl: useSsl ? { rejectUnauthorized: false } : false,
+          ssl: mustUseSSL ? { rejectUnauthorized: false } : false,
           max: Number(process.env.DB_MAX || 10),
           idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 10000,
+          connectionTimeoutMillis: 20000,
           statement_timeout: 30000,
           query_timeout: 30000,
           keepAlive: true,
+          application_name: process.env.RENDER_SERVICE_NAME || 'cme-monolith',
         });
+
+        try {
+          const { rows } = await pool.query('select 1 as ok');
+          if (!rows?.length) throw new Error('DB warmup failed');
+        } catch (err) {
+          await pool.end().catch(() => { });
+          throw err;
+        }
+
         return pool;
       },
     },
