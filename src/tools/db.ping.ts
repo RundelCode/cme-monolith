@@ -1,11 +1,11 @@
-import { Pool } from 'pg';
+// src/tools/db.ping.ts
+import 'dotenv/config';
+import { Client } from 'pg';
 import dns from 'node:dns';
 import { parse } from 'pg-connection-string';
 
 (async () => {
-    if (typeof dns.setDefaultResultOrder === 'function') {
-        dns.setDefaultResultOrder('ipv4first');
-    }
+    if (typeof dns.setDefaultResultOrder === 'function') dns.setDefaultResultOrder('ipv4first');
 
     const raw = (process.env.DATABASE_URL || '').trim();
     if (!raw) throw new Error('DATABASE_URL missing');
@@ -17,25 +17,17 @@ import { parse } from 'pg-connection-string';
     const user = c.user ?? undefined;
     const password = c.password ?? undefined;
 
-    const pool = new Pool({
-        host, // hostname
-        port,
-        database,
-        user,
-        password,
+    const client = new Client({
+        host, port, database, user, password,
         ssl: { rejectUnauthorized: false, servername: host },
         connectionTimeoutMillis: 20000,
-        query_timeout: 30000,
-        keepAlive: true,
     });
 
     try {
-        const r = await pool.query('select current_user, current_database(), inet_server_addr()');
+        await client.connect();
+        const r = await client.query('select current_user, current_database(), inet_server_addr(), inet_client_addr(), now() as ts');
         console.log('DB OK =>', r.rows[0]);
     } finally {
-        await pool.end();
+        try { await client.end(); } catch (_) { }
     }
-})().catch((e) => {
-    console.error('DB FAIL =>', e);
-    process.exit(1);
-});
+})();

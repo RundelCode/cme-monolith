@@ -20,6 +20,10 @@ function purgePgEnv() {
   for (const k of keys) if (process.env[k]) delete process.env[k];
 }
 
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 @Module({
   imports: [ConfigModule],
   providers: [
@@ -52,7 +56,7 @@ function purgePgEnv() {
           database,
           user,
           password,
-          ssl: mustUseSSL ? { rejectUnauthorized: false, servername: host } : false, // ← SNI explícito
+          ssl: mustUseSSL ? { rejectUnauthorized: false, servername: host } : false,
           max: Number(process.env.DB_MAX || 10),
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 20000,
@@ -62,13 +66,22 @@ function purgePgEnv() {
           application_name: process.env.RENDER_SERVICE_NAME || 'cme-monolith',
         });
 
-        try {
-          const { rows } = await pool.query('select 1 as ok');
-          if (!rows?.length) throw new Error('DB warmup failed');
-        } catch (err) {
-          await pool.end().catch(() => { });
-          throw err;
-        }
+        // 🔁 Warmup no bloqueante con retries
+        (async () => {
+          const retries = Number(process.env.DB_CONNECT_RETRIES || 10);
+          const backoff = Number(process.env.DB_CONNECT_BACKOFF_MS || 1000);
+          for (let i = 1; i <= retries; i++) {
+            try {
+              await pool.query('select 1 as ok');
+              console.log(`[DB] ✅ Connected on attempt ${i}`);
+              return;
+            } catch (e) {
+              console.warn(`[DB] ❌ Attempt ${i} failed: ${(e as Error).message}`);
+              await sleep(backoff * i);
+            }
+          }
+          console.error('[DB] ❌ All retry attempts failed (app keeps running)');
+        })().catch(() => { });
 
         return pool;
       },
