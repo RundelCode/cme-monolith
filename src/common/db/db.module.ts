@@ -33,6 +33,7 @@ async function sleep(ms: number) {
       useFactory: async (config: ConfigService) => {
         purgePgEnv();
 
+        // 👇 fuerza IPv4 primero en Render
         if (typeof dns.setDefaultResultOrder === 'function') {
           dns.setDefaultResultOrder('ipv4first');
         }
@@ -50,8 +51,15 @@ async function sleep(ms: number) {
         const onLocal = isLocalHost(host);
         const mustUseSSL = !onLocal;
 
-        console.log('[DB] Using host/port/db/user =>',
-        host, port, database, user);
+        // 🧭 Log diagnóstico
+        console.log('[DB] Using =>', {
+          host,
+          port,
+          database,
+          user,
+          urlTail: raw.slice(-40),
+        });
+
         const pool = new Pool({
           host,
           port,
@@ -60,14 +68,15 @@ async function sleep(ms: number) {
           password,
           ssl: mustUseSSL ? { rejectUnauthorized: false, servername: host } : false,
           max: Number(process.env.DB_MAX || 10),
-          idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 20000,
+          idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT || 30000),
+          connectionTimeoutMillis: Number(process.env.DB_CONN_TIMEOUT || 20000),
           statement_timeout: 30000,
           query_timeout: 30000,
           keepAlive: true,
           application_name: process.env.RENDER_SERVICE_NAME || 'cme-monolith',
         });
 
+        // 🔁 Warmup no bloqueante con retries
         (async () => {
           const retries = Number(process.env.DB_CONNECT_RETRIES || 10);
           const backoff = Number(process.env.DB_CONNECT_BACKOFF_MS || 1000);
@@ -82,7 +91,7 @@ async function sleep(ms: number) {
             }
           }
           console.error('[DB] ❌ All retry attempts failed (app keeps running)');
-        })().catch(() => { });
+        })().catch((e) => console.error('[DB] Warmup error:', e));
 
         return pool;
       },
