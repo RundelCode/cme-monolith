@@ -66,17 +66,16 @@ async function sleep(ms: number) {
           application_name: process.env.RENDER_SERVICE_NAME || 'cme-monolith',
         });
 
-        // 🔁 Warmup no bloqueante con retries
         (async () => {
           const retries = Number(process.env.DB_CONNECT_RETRIES || 10);
           const backoff = Number(process.env.DB_CONNECT_BACKOFF_MS || 1000);
           for (let i = 1; i <= retries; i++) {
             try {
-              await pool.query('select 1 as ok');
+              await pool.query('select 1');
               console.log(`[DB] ✅ Connected on attempt ${i}`);
               return;
-            } catch (e) {
-              console.warn(`[DB] ❌ Attempt ${i} failed: ${(e as Error).message}`);
+            } catch (e: any) {
+              console.warn(`[DB] ❌ Attempt ${i} failed: ${e?.code || e?.message}`);
               await sleep(backoff * i);
             }
           }
