@@ -24,7 +24,7 @@ export class UploadsSelfController {
   )
   async uploadAvatarOneShot(
     @Headers('x-user-id') userId: string | undefined,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
     @Headers('x-internal-gateway') fromGateway: string | undefined,
   ) {
     if (!fromGateway) {
@@ -46,7 +46,7 @@ export class UploadsSelfController {
   )
   async uploadCoverOneShot(
     @Headers('x-user-id') userId: string | undefined,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
     @Headers('x-internal-gateway') fromGateway: string | undefined,
   ) {
     if (!fromGateway) {
