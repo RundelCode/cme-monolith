@@ -10,6 +10,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { UploadsService } from './uploads-service.service';
+import { Express } from 'express';
 
 @Controller('uploads/self')
 export class UploadsSelfController {

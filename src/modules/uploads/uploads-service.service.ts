@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { extname } from 'path';
 import { randomUUID } from 'crypto';
+import { Express } from 'express';
 
 @Injectable()
 export class UploadsService {
