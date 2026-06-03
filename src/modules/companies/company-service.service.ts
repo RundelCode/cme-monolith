@@ -131,7 +131,6 @@ export class CompaniesService {
 
     if (dto.name !== undefined) add('name', dto.name);
     if (dto.email !== undefined) add('email', dto.email);
-    if (dto.adminId !== undefined) add('admin_id', dto.adminId ?? null);
     if (dto.website !== undefined) add('website', dto.website ?? null);
     if (dto.description !== undefined) add('description', dto.description ?? null);
     if (dto.industry !== undefined) add('industry', dto.industry ?? null);

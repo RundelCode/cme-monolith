@@ -8,10 +8,6 @@ export class UpdateCompanyDto {
   @IsOptional() @IsString() name?: string;
   @IsOptional() @IsEmail() email?: string;
 
-  @IsOptional()
-  @IsUUID()
-  @ToNullIfEmpty()
-  adminId?: string | null;
 
   @IsOptional()
   @ValidateIf((o) => o.website != null && o.website !== '')
